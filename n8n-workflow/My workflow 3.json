@@ -1,0 +1,311 @@
+{
+  "name": "My workflow 3",
+  "nodes": [
+    {
+      "parameters": {
+        "functionCode": "const raw = $json.choices?.[0]?.message?.content || \"\";\n// Remove code fences like ```json ... ```\nconst cleaned = raw.replace(/```json|```/g, \"\").trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  // Fallback structure if parsing fails\n  parsed = {\n    sentiment: {\n      positive: 0,\n      neutral: 0,\n      negative: 0\n    },\n    pros: [],\n    cons: [],\n    summary: \"\"\n  };\n}\n\n// Return parsed JSON only\nreturn [\n  {\n    json: parsed\n  }\n];\n"
+      },
+      "id": "305d18bf-a5a0-439d-99f0-4d64e80af34c",
+      "name": "Parse Output",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        -432
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  model: \"openai/gpt-3.5-turbo\",\n  temperature: 0,\n  messages: [\n    {\n      role: \"system\",\n      content: \"Return ONLY valid JSON. No text outside JSON.\"\n    },\n    {\n      role: \"user\",\n      content: \"Analyze the following product reviews.\\n\\nProduct: \" + $json.productName + \"\\n\\nReviews:\\n\" + $json.reviews + \"\\n\\nTasks:\\n1. Calculate % positive, neutral, and negative sentiment (integer percentages)\\n2. Extract top 3 pros\\n3. Extract top 3 cons\\n4. Provide a short summary\\n\\nReturn JSON: {\\n  \\\"sentiment\\\": {\\n    \\\"positive\\\": 0,\\n    \\\"neutral\\\": 0,\\n    \\\"negative\\\": 0\\n  },\\n  \\\"pros\\\": [],\\n  \\\"cons\\\": [],\\n  \\\"summary\\\": \\\"\\\"\\n}\"\n    }\n  ]\n} }}\n",
+        "options": {}
+      },
+      "id": "bec2f180-60a0-4def-b02e-ecb0bc01c651",
+      "name": "AI Analysis2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -368,
+        -432
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "2c74e942-b323-4326-b1e3-5b780f4cabaa",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -816,
+        -432
+      ],
+      "id": "afa3c828-1cc4-4d25-b2af-13a7d645ba39",
+      "name": "Webhook",
+      "webhookId": "2c74e942-b323-4326-b1e3-5b780f4cabaa"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -592,
+        -432
+      ],
+      "id": "f44f887b-42a0-4a7f-84eb-ac9adc3a3095",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"sentiment\": {{$json.sentiment}},\n  \"pros\": \"{{$json.pros.join(', ')}}\",\n  \"cons\": \"{{$json.cons.join(', ')}}\",\n  \"summary\": \"{{$json.summary}}\",\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        -432
+      ],
+      "id": "7d6cc125-9728-400f-951b-4aea3c5ef1f3",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        304,
+        -432
+      ],
+      "id": "a6b89b46-01b0-4d39-a757-78cb0a49c0f5",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"openai/gpt-3.5-turbo\",\n  \"temperature\": 0,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Return valid JSON only, no extra text.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Analyze the following text:\\n\\nText: {{$json.text}}\\n\\nReturn JSON with this structure:\\n{\\n  \\\"entities\\\": [list of people, places, organizations, dates],\\n  \\\"sentiment\\\": { \\\"positive\\\": %, \\\"neutral\\\": %, \\\"negative\\\": % },\\n  \\\"pros\\\": [list of pros],\\n  \\\"cons\\\": [list of cons],\\n  \\\"readability_score\\\": number,\\n  \\\"style\\\": \\\"style description\\\",\\n  \\\"summary\\\": \\\"short summary\\\"\\n}\"\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "id": "560ed2b4-33c0-49d2-9a3d-ab8b049fff6a",
+      "name": "AI Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -144,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "2c74e942-b323-4326-b1e3-5b780f4cabaa",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -816,
+        -208
+      ],
+      "id": "b049a564-6366-40aa-946b-3f6c38cbd42a",
+      "name": "Webhook1",
+      "webhookId": "2c74e942-b323-4326-b1e3-5b780f4cabaa"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        480,
+        -208
+      ],
+      "id": "d8f55669-8f27-4593-a05c-bf0b3396e072",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\ntext:\"{{ $json.body.text }}\"\n}",
+        "includeOtherFields": "=",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -384,
+        -208
+      ],
+      "id": "38330e8f-c858-411f-ace0-2d28fa70d0ca",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Each item has a .json property\nconst results = [];\n\nfor (const item of items) {\n  const raw = item.json.choices?.[0]?.message?.content || \"{}\";\n  try {\n    const parsed = JSON.parse(raw);\n    results.push({ json: parsed });\n  } catch (e) {\n    results.push({\n      json: {\n        entities: [],\n        sentiment: { positive: 0, neutral: 0, negative: 0 },\n        pros: [],\n        cons: [],\n        readability_score: 0,\n        style: \"\",\n        summary: \"\"\n      }\n    });\n  }\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        -208
+      ],
+      "id": "44b65748-ad7f-4540-917f-4ecc2948ef5a",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Parse Output": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis2": {
+      "main": [
+        [
+          {
+            "node": "Parse Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "61cf5e3d-6c31-466f-bef8-8ca1523d599a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2f8cf638b24d5db0e03d8902b9b94440605d65af973e7a64a1fb97480053f9b5"
+  },
+  "id": "FA1fhF1KQKoh9WQq",
+  "tags": []
+}
